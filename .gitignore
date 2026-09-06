@@ -1,0 +1,63 @@
+# =========================
+# Python
+# =========================
+
+__pycache__/
+*.py[cod]
+*.pyo
+
+venv/
+.venv/
+env/
+ENV/
+myenv/
+backend/myenv/
+
+# =========================
+# Environment / Secrets
+# =========================
+
+.env
+.env.*
+!.env.example
+
+# =========================
+# FastAPI
+# =========================
+
+*.log
+
+# =========================
+# Chroma / Vector Database
+# =========================
+
+chroma/
+chroma_db/
+.chromadb/
+backend/chroma_data/
+
+# =========================
+# Node / Next.js
+# =========================
+
+node_modules/
+.next/
+out/
+dist/
+
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# =========================
+# OS
+# =========================
+
+.DS_Store
+Thumbs.db
+
+# =========================
+# VS Code
+# =========================
+
+.vscode/
