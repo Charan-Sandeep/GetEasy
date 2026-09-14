@@ -1,0 +1,10 @@
+node_modules/
+venv/
+backend/venv/
+__pycache__/
+*.pyc
+.env
+.env.*
+!.env.example
+backend/chroma_data/
+frontend/.next/

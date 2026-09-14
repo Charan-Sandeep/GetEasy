@@ -1,6 +1,6 @@
 import uuid
 import datetime
-from sqlalchemy import Column, String, DateTime, ForeignKey, Text, Enum
+from sqlalchemy import Column, String, DateTime, ForeignKey, Text, Enum, Integer, Float, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 import enum
@@ -40,7 +40,8 @@ class Subject(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     owner = relationship("User", back_populates="subjects")
-    documents = relationship("Document", back_populates="subject")
+    documents = relationship("Document", back_populates="subject", cascade="all, delete-orphan")
+    topics = relationship("Topic", back_populates="subject", cascade="all, delete-orphan")
 
 
 class Document(Base):
@@ -51,9 +52,10 @@ class Document(Base):
     filename = Column(String, nullable=False)
     content_type = Column(Enum(ContentType), default=ContentType.other)
     uploaded_at = Column(DateTime, default=datetime.datetime.utcnow)
-    chunk_count = Column(String, default="0")
+    chunk_count = Column(Integer, default=0)
 
     subject = relationship("Subject", back_populates="documents")
+    chunks = relationship("Chunk", back_populates="document", cascade="all, delete-orphan")
 
 
 class Chunk(Base):
@@ -65,7 +67,49 @@ class Chunk(Base):
     __tablename__ = "chunks"
 
     id = Column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
-    document_id = Column(UUID(as_uuid=False), ForeignKey("documents.id"))
+    document_id = Column(UUID(as_uuid=False), ForeignKey("documents.id", ondelete="CASCADE"))
     chroma_id = Column(String, nullable=False)  # id used in the Chroma collection
     text_preview = Column(Text)  # first ~200 chars, for quick display
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    document = relationship("Document", back_populates="chunks")
+
+
+class Topic(Base):
+    __tablename__ = "topics"
+    __table_args__ = (UniqueConstraint("subject_id", "normalized_name", name="uq_topic_subject_name"),)
+
+    id = Column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
+    subject_id = Column(UUID(as_uuid=False), ForeignKey("subjects.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String, nullable=False)
+    normalized_name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    frequency = Column(Integer, default=1)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    subject = relationship("Subject", back_populates="topics")
+
+
+class TopicRelationship(Base):
+    __tablename__ = "topic_relationships"
+    __table_args__ = (UniqueConstraint("subject_id", "source_topic_id", "target_topic_id", "relationship_type", name="uq_topic_relationship"),)
+
+    id = Column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
+    subject_id = Column(UUID(as_uuid=False), ForeignKey("subjects.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_topic_id = Column(UUID(as_uuid=False), ForeignKey("topics.id", ondelete="CASCADE"), nullable=False)
+    target_topic_id = Column(UUID(as_uuid=False), ForeignKey("topics.id", ondelete="CASCADE"), nullable=False)
+    relationship_type = Column(String, nullable=False, default="related")
+    weight = Column(Float, default=0.5)
+    evidence = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+
+class QuestionTopicMapping(Base):
+    __tablename__ = "question_topic_mappings"
+
+    id = Column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
+    subject_id = Column(UUID(as_uuid=False), ForeignKey("subjects.id", ondelete="CASCADE"), nullable=False, index=True)
+    document_id = Column(UUID(as_uuid=False), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False)
+    question_chroma_id = Column(String, nullable=False, index=True)
+    question_preview = Column(String, nullable=False)
+    topic_id = Column(UUID(as_uuid=False), ForeignKey("topics.id", ondelete="CASCADE"), nullable=False)
+    confidence = Column(Float, default=0.0)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)

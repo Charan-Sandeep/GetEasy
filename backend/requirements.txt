@@ -1,13 +1,16 @@
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
 sqlalchemy==2.0.35
-psycopg2-binary==2.9.9
+# Current prebuilt PostgreSQL driver; works on modern Windows Python versions
+# without requiring PostgreSQL build tools / pg_config.
+psycopg[binary]>=3.2,<3.4
 python-dotenv==1.0.1
 pydantic==2.9.2
 pydantic-settings==2.5.2
+email-validator==2.2.0
 python-multipart==0.0.9
 python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
+passlib==1.7.4
 
 # Document processing
 pypdf==4.3.1
@@ -20,3 +23,4 @@ sentence-transformers==3.1.1
 
 # LLM
 groq==1.6.0
+networkx==3.3
