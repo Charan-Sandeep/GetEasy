@@ -92,3 +92,20 @@ def guess_content_type(filename: str, text_sample: str) -> str:
     if any(k in sample[:500] for k in ["question 1", "q1.", "attempt any"]):
         return "questions"
     return "textbook"
+
+
+def extract_numbered_questions(text: str, limit: int = 20) -> list[str]:
+    """Split a question paper into numbered questions for batch solving."""
+    marker = re.compile(r"(?im)(?=^\s*(?:q(?:uestion)?\s*)?\d{1,3}\s*[.)])")
+    starts = list(marker.finditer(text))
+    if not starts:
+        return []
+    questions = []
+    for index, match in enumerate(starts):
+        end = starts[index + 1].start() if index + 1 < len(starts) else len(text)
+        question = re.sub(r"\s+", " ", text[match.start():end]).strip()
+        if len(question) >= 12:
+            questions.append(question[:1800])
+        if len(questions) >= limit:
+            break
+    return questions

@@ -1,182 +1,139 @@
 # Subject Guide & Question Bank Assistant
 
-An AI-powered study assistant for uploading academic material and asking questions grounded in that material.
+A subject-scoped study assistant for course documents and question banks. Upload notes, textbooks, labs, and question papers; then receive grounded answers from Groq with source filenames.
 
-The application uses:
+## Features
 
-- **Next.js** for the browser interface
-- **FastAPI** for the backend API
-- **PostgreSQL** for subject and document metadata
-- **ChromaDB** and local `sentence-transformers` embeddings for retrieval
-- **Groq** for answer generation
+- PDF, DOCX, PPTX, and TXT extraction with automatic document categorization
+- Persistent ChromaDB retrieval scoped to each authenticated subject
+- Account registration, login, and JWT-protected subject/document APIs
+- Multi-file document upload, listing, deletion, and stored chunk metadata
+- Remembered study-chat follow-ups plus three study modes: adaptive topic explanation, exam-question solving, and cross-document synthesis
+- Batch question-bank solving for every detected numbered question in an uploaded question-paper document
+- Basic subject analytics and automatic question-topic links that refresh when related material is uploaded
+- A NetworkX-backed topic graph with conservative prerequisite suggestions
 
 ## Prerequisites
 
-Install the following before starting:
-
-- Python 3.10 or newer
-- Node.js 18 or newer
-- Docker Desktop
+- **Python 3.11** (required for this ChromaDB release on Windows)
+- Node.js 18+
+- Docker Desktop with its engine running
 - A Groq API key from [GroqCloud](https://console.groq.com/)
 
-### Docker Desktop on Windows
+> Do not use Python 3.12+ for this dependency set. It may attempt to compile ChromaDB's vector-index package on Windows.
 
-Docker Desktop uses WSL 2. If Docker reports that WSL is not installed, open **PowerShell as Administrator** and run:
-
-```powershell
-wsl --install --no-distribution
-```
-
-Restart Windows, open Docker Desktop, and wait until it shows **Engine running**. This does not install Ubuntu.
-
-## Setup (Windows)
-
-The commands below use a temporary `S:` drive mapping to keep paths short. This avoids Windows path-length failures while installing PyTorch and the embedding dependencies.
-
-Open PowerShell and run:
-
-```powershell
-subst S: C:\Users\<your-user>\Downloads\subject-guide-starter\subject-guide
-S:
-```
-
-Replace `<your-user>` with your Windows username, or substitute the actual absolute path to this project.
+## Run locally on Windows
 
 ### 1. Start PostgreSQL
 
-Make sure Docker Desktop is running, then run:
+Open PowerShell and run this once to create the database container:
 
 ```powershell
 docker run --name subject-guide-db -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=subject_guide -p 5432:5432 -d postgres:16
 ```
 
-Confirm that it is running:
-
-```powershell
-docker ps
-```
-
-On future runs, start the existing container instead:
+On later runs, use:
 
 ```powershell
 docker start subject-guide-db
 ```
 
-### 2. Configure the backend
+Confirm it is running:
 
 ```powershell
-S:
-cd \backend
-python -m venv venv
+docker ps
+```
+
+### 2. Start the backend
+
+Open a new PowerShell window:
+
+```powershell
+cd C:\Users\<your-user>\Downloads\subject-guide-starter\subject-guide\backend
+py -3.11 -m venv venv
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 Copy-Item .env.example .env
 notepad .env
 ```
 
-Set these values in `backend/.env`:
+In `.env`, set these values:
 
 ```ini
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/subject_guide
+DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/subject_guide
 GROQ_API_KEY=your-groq-api-key
 GROQ_MODEL=openai/gpt-oss-20b
-JWT_SECRET_KEY=replace-with-a-long-random-string
+JWT_SECRET_KEY=replace-with-a-long-random-secret
 ```
 
-Do not commit or share the `.env` file or your API key.
-
-Start the backend and leave this PowerShell window open:
+Start the API and leave that window open:
 
 ```powershell
 python -m uvicorn app.main:app --reload
 ```
 
-Open [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) to view the API documentation.
+Open [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) to inspect the API.
 
-### 3. Create a demo user and a subject
+### 3. Start the frontend
 
-The starter UI requires a Subject ID, and the current starter does not include user registration. Open a **second** PowerShell window and create a local demo user:
-
-```powershell
-docker exec -it subject-guide-db psql -U postgres -d subject_guide -c "INSERT INTO users (id, email, hashed_password) VALUES ('00000000-0000-0000-0000-000000000001', 'demo@example.com', 'not-used') ON CONFLICT (email) DO NOTHING;"
-```
-
-Create a subject and print its Subject ID:
+Open one more PowerShell window:
 
 ```powershell
-$payload = @{ name = "Machine Learning"; owner_id = "00000000-0000-0000-0000-000000000001" } | ConvertTo-Json
-$subject = Invoke-RestMethod -Uri "http://127.0.0.1:8000/subjects" -Method Post -ContentType "application/json" -Body $payload
-$subject.id
-```
-
-Copy the UUID printed by the last command. It is the Subject ID for the frontend.
-
-### 4. Run the frontend
-
-Open a **third** PowerShell window:
-
-```powershell
-S:
-cd \frontend
-npm.cmd install
-npm.cmd run dev
+cd C:\Users\<your-user>\Downloads\subject-guide-starter\subject-guide\frontend
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+npm install
+npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## Using the application
+## Use the app
 
-1. Paste the generated Subject ID into the **Subject ID** field.
-2. Upload a `.pdf`, `.docx`, `.pptx`, or `.txt` document. The old Word `.doc` format is not supported.
-3. Wait for the upload confirmation.
-4. Ask a question based on the document, for example:
+1. Register an account (or sign in).
+2. Create a subject/course workspace.
+3. Upload one or more PDF, DOCX, PPTX, or TXT files. Hold `Ctrl` in the file chooser to select separate files, or use `Ctrl + A` to select a folder's files.
+4. Wait for each selected document to be categorized, indexed, and added to the subject knowledge graph.
+5. Select Beginner, Intermediate, or Advanced and choose a study mode.
+6. Ask a topic question, request a cross-document synthesis, or paste an exam question to solve.
 
-   ```text
-   Summarize this document and list its important exam topics.
-   ```
+For a document tagged as `questions`, use **Solve all questions** beside the file name. The system extracts up to 20 numbered questions and solves each one separately against the other uploaded course materials. This is intentionally processed one question at a time, so a large question paper can take a few minutes.
 
-The first upload can take longer because the embedding model is initialized locally.
+The Study Chat keeps recent follow-up messages, so you can ask questions such as “give an example of that” or “explain it at a beginner level” without repeating the topic. Each response still retrieves course sources before answering.
+
+The first document upload can take longer because the embedding model is downloaded and initialized locally. Answers cite the uploaded filenames used as sources.
+
+## Four-week milestone coverage
+
+| Week | Delivered work |
+| --- | --- |
+| 1–2 | Multi-format extraction, automatic tagging, persistent ChromaDB storage, authenticated subject scoping, document management, and grounded sourced answers. |
+| 3 | Topic explanation, exam-question solving, cross-document synthesis, analytics, and question-topic mapping. |
+| 4 | NetworkX subject/topic graphs, prerequisite suggestions, and adaptive explanation levels. |
+
+Topic discovery, prerequisite suggestions, and question-topic links are conservative, content-based heuristics. They improve as more relevant course materials are uploaded; they are not presented as a separately trained classifier.
 
 ## Troubleshooting
 
-### Docker Desktop cannot start
+### PowerShell says scripts are disabled
 
-Verify that Docker Desktop is open and its engine is running. If WSL is missing, use the WSL command in the prerequisites section and restart Windows.
-
-### PowerShell blocks virtual-environment activation
-
-Run the following in the current PowerShell window, then activate the environment again:
+Run this separately in each terminal where it is needed:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.\venv\Scripts\Activate.ps1
 ```
 
-### `ModuleNotFoundError` after installing dependencies
+### Docker Desktop cannot start
 
-The installation was interrupted or run from the wrong Python environment. Activate the virtual environment and run:
+Start Docker Desktop and wait for **Engine running**. If it reports that WSL is unavailable, run PowerShell as Administrator:
 
 ```powershell
-python -m pip install -r requirements.txt
+wsl --install --no-distribution
 ```
 
-Do not cancel the command while large packages such as PyTorch and `sentence-transformers` are installing.
+Restart Windows after that command. It enables the container platform without installing Ubuntu.
 
-### Groq reports that a model is unavailable
+### A PDF has no extractable text
 
-Use this model in `backend/.env` and restart the backend:
-
-```ini
-GROQ_MODEL=openai/gpt-oss-20b
-```
-
-### Upload fails with an invalid UUID error
-
-The Subject ID is invalid. Create a subject using the command above and paste its returned UUID into the frontend. Do not use values such as `1` or `test-user`.
-
-## Development notes
-
-- Document content is stored in the local Chroma directory configured by `CHROMA_PERSIST_DIR`.
-- PostgreSQL holds users, subjects, and document metadata.
-- The current authentication path is development-only. Replace the demo user with real authentication before deployment.
+It may be scanned/image-only. Use a text-based PDF, or OCR it before upload.

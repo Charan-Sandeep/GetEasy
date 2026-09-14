@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import Base, engine
-from app.routers import documents, query, subjects
+from app.routers import auth, documents, query, subjects
 
 # Creates tables if they don't exist. Fine for Week 1-2;
 # switch to Alembic migrations once the schema stabilizes.
@@ -20,6 +20,7 @@ app.add_middleware(
 )
 
 app.include_router(subjects.router)
+app.include_router(auth.router)
 app.include_router(documents.router)
 app.include_router(query.router)
 

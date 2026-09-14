@@ -1,0 +1,30 @@
+.env
+*.env
+!.env.example
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+node_modules/
+.next/
+out/
+chroma_data/
+*.sqlite3
+.DS_Store
+.vscode/
+.idea/
+*.log
+# Frontend
+frontend/node_modules/
+
+# Python
+backend/venv/
+venv/
+__pycache__/
+*.pyc
+
+# Environment variables
+.env
+.env.*
+!.env.example
