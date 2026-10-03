@@ -89,6 +89,9 @@ def solve_question_bank(req: QuestionBankRequest, db: Session = Depends(get_db),
         results = vector_store.query(question, req.subject_id, top_k=7, exclude_content_type="questions")
         chunks = results["documents"][0] if results.get("documents") else []
         metadatas = results["metadatas"][0] if results.get("metadatas") else []
-        answer = llm_service.generate_answer(question, chunks, metadatas, mode="solve_question", level=level)
-        answers.append({"question": question, "answer": answer, "sources": list(dict.fromkeys(m.get("filename") for m in metadatas))})
+        answer = llm_service.generate_answer(question, chunks, metadatas, mode="solve_question", level=level,
+                                              allow_general_knowledge=not chunks)
+        sources = list(dict.fromkeys(m.get("filename") for m in metadatas)) or [f"{document.filename} (question prompt)"]
+        answers.append({"question": question, "answer": answer, "sources": sources,
+                        "uses_general_knowledge": not chunks})
     return {"document": document.filename, "questions_detected": len(questions), "answers": answers}

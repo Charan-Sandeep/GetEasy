@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 from app.database import get_db
-from app.models.models import Subject, User, Topic, TopicRelationship, QuestionTopicMapping, Document
+from app.models.models import Subject, User, Topic, TopicRelationship, QuestionTopicMapping, Document, Chunk
 from app.services.auth_service import get_current_user, require_subject_owner
 from app.services import vector_store, topic_service
 
@@ -27,6 +27,28 @@ def create_subject(payload: SubjectCreate, db: Session = Depends(get_db), user: 
 def list_subjects(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     subjects = db.query(Subject).filter(Subject.owner_id == user.id).order_by(Subject.created_at.desc()).all()
     return [{"id": s.id, "name": s.name} for s in subjects]
+
+
+@router.delete("/{subject_id}", status_code=204)
+def delete_subject(subject_id: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Delete one owned subject and all of its relational and vector data."""
+    subject = require_subject_owner(subject_id, user, db)
+    documents = db.query(Document).filter(Document.subject_id == subject_id).all()
+    try:
+        for document in documents:
+            vector_store.delete_document(str(document.id))
+        document_ids = [document.id for document in documents]
+        db.query(QuestionTopicMapping).filter(QuestionTopicMapping.subject_id == subject_id).delete(synchronize_session=False)
+        db.query(TopicRelationship).filter(TopicRelationship.subject_id == subject_id).delete(synchronize_session=False)
+        db.query(Topic).filter(Topic.subject_id == subject_id).delete(synchronize_session=False)
+        if document_ids:
+            db.query(Chunk).filter(Chunk.document_id.in_(document_ids)).delete(synchronize_session=False)
+            db.query(Document).filter(Document.id.in_(document_ids)).delete(synchronize_session=False)
+        db.delete(subject)
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Could not delete the subject: {exc}") from exc
 
 
 @router.get("/{subject_id}/knowledge-graph")
