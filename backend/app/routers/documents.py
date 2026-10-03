@@ -2,11 +2,12 @@ import os
 import tempfile
 
 from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.models import Document, Chunk, ContentType, User
-from app.services import document_processor, vector_store, topic_service
+from app.models.models import Document, Chunk, ContentType, User, Subject
+from app.services import document_processor, vector_store, topic_service, subject_detector
 from app.services.auth_service import get_current_user, require_subject_owner
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -22,10 +23,9 @@ def serialize_document(document: Document) -> dict:
 
 @router.post("/upload", status_code=status.HTTP_201_CREATED)
 async def upload_document(
-    subject_id: str = Form(...), file: UploadFile = File(...), db: Session = Depends(get_db),
+    subject_id: str | None = Form(None), auto_detect: bool = Form(False), file: UploadFile = File(...), db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    require_subject_owner(subject_id, user, db)
     filename = file.filename or "uploaded-file"
     extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
     if extension not in SUPPORTED_EXTENSIONS:
@@ -50,6 +50,19 @@ async def upload_document(
 
     if not text.strip():
         raise HTTPException(status_code=400, detail="No extractable text found. The document may be scanned or image-only.")
+    if auto_detect or not subject_id:
+        try:
+            subject_name = subject_detector.detect_subject(text)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        subject = db.query(Subject).filter(Subject.owner_id == user.id, func.lower(Subject.name) == subject_name.lower()).first()
+        if not subject:
+            subject = Subject(name=subject_name, owner_id=user.id)
+            db.add(subject)
+            db.flush()
+        subject_id = str(subject.id)
+    else:
+        subject = require_subject_owner(subject_id, user, db)
     chunks = document_processor.chunk_text(text)
     if not chunks:
         raise HTTPException(status_code=400, detail="No usable text chunks could be created.")
@@ -85,7 +98,8 @@ async def upload_document(
             vector_store.delete_document(str(doc.id))
         raise HTTPException(status_code=500, detail=f"Could not index the document: {exc}") from exc
 
-    return {**serialize_document(doc), "chunks_created": len(chunks), "graph": graph_info, "question_mappings_created": mappings}
+    return {**serialize_document(doc), "subject_id": subject_id, "subject_name": subject.name,
+            "chunks_created": len(chunks), "graph": graph_info, "question_mappings_created": mappings}
 
 
 @router.get("/subject/{subject_id}")

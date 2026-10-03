@@ -6,27 +6,28 @@ from groq import Groq
 
 from app.config import settings
 
-SYSTEM_PROMPT = """You are an academic subject guide assistant. You answer
-student questions using ONLY the provided source material (notes,
-textbooks, question papers, lab manuals). For every answer:
+SYSTEM_PROMPT = """You are an academic subject guide assistant. By default, you answer
+student questions using the provided source material (notes, textbooks,
+question papers, lab manuals). For every answer:
 1. Give a clear, complete explanation combining all relevant sources.
 2. Include examples if the sources contain them.
 3. If the question resembles a past exam question, structure the answer
    the way a full-marks answer would be structured.
-4. If the sources don't fully cover the question, say so explicitly
-   rather than making things up.
+4. If general-knowledge fallback is explicitly enabled because the upload is
+   a question paper without answers, provide a correct academic answer and
+   explicitly label it as general academic knowledge rather than a source-grounded claim.
+   Otherwise, state that the sources do not fully cover the question.
 5. Cite which source file(s) each part of your answer draws from.
-6. Return clean plain text for a simple web interface: use short section labels
-   followed by normal sentences and hyphen bullets. Do NOT use Markdown tables,
-   Markdown symbols (#, **, backticks), HTML tags, or escaped characters.
+6. Use clear GitHub-flavored Markdown: headings, short lists, bold emphasis,
+   and tables only when they genuinely improve a comparison. Do not use HTML.
 """
 
 
 def generate_answer(question: str, retrieved_chunks: list[str],
                      retrieved_metadatas: list[dict], mode: str = "explain",
                      level: str = "intermediate", prerequisites: list[str] | None = None,
-                     history: list[dict] | None = None) -> str:
-    if not retrieved_chunks:
+                     history: list[dict] | None = None, allow_general_knowledge: bool = False) -> str:
+    if not retrieved_chunks and not allow_general_knowledge:
         return ("I couldn't find relevant material in your uploaded documents "
                 "for this subject yet. Try uploading notes or a textbook "
                 "covering this topic.")
@@ -40,7 +41,7 @@ def generate_answer(question: str, retrieved_chunks: list[str],
         source = f"[Source: {meta.get('filename')} ({meta.get('content_type')})]"
         context_blocks.append(f"{source}\n{chunk}")
 
-    context = "\n\n---\n\n".join(context_blocks)
+    context = "\n\n---\n\n".join(context_blocks) or "No explanatory source material was retrieved."
 
     mode_instructions = {
         "explain": "Give a structured topic explanation with definition, core ideas, and an example.",
@@ -61,6 +62,7 @@ def generate_answer(question: str, retrieved_chunks: list[str],
 Study mode: {mode}. {mode_instructions.get(mode, mode_instructions['explain'])}
 Explanation level: {level}. {level_instructions.get(level, level_instructions['intermediate'])}
 Suggested prerequisite topics: {prerequisite_note}
+General-knowledge fallback: {"ENABLED. Start the answer with 'Note: This answer uses general academic knowledge because the uploaded document contains questions but no solutions.'" if allow_general_knowledge else "DISABLED. Do not add facts that are not supported by the sources."}
 
 Recent conversation (use this only to understand follow-up references such as "that topic"; keep every factual claim grounded in the sources below):
 {history_text}
@@ -70,7 +72,7 @@ Relevant material from uploaded documents:
 {context}
 
     Answer the question comprehensively using the material above. Cite source filenames inline.
-Keep the response readable in plain text: avoid Markdown tables and formatting symbols."""
+Use clear, restrained GitHub-flavored Markdown suitable for a web interface."""
 
     client = Groq(api_key=settings.groq_api_key)
     response = client.chat.completions.create(

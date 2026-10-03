@@ -7,8 +7,11 @@ A subject-scoped study assistant for course documents and question banks. Upload
 - PDF, DOCX, PPTX, and TXT extraction with automatic document categorization
 - Persistent ChromaDB retrieval scoped to each authenticated subject
 - Account registration, login, and JWT-protected subject/document APIs
-- Multi-file document upload, listing, deletion, and stored chunk metadata
+- Multi-file and folder document upload, listing, deletion, and stored chunk metadata
+- Optional Groq-powered subject detection that creates or reuses the signed-in user's matching subject workspace
 - Remembered study-chat follow-ups plus three study modes: adaptive topic explanation, exam-question solving, and cross-document synthesis
+- Markdown-formatted answers with readable headings, lists, code, and tables
+- ChatGPT-inspired dark study workspace with subject sidebar, focused chat, bottom composer, and collapsible Library/Insights panels
 - Batch question-bank solving for every detected numbered question in an uploaded question-paper document
 - Basic subject analytics and automatic question-topic links that refresh when related material is uploaded
 - A NetworkX-backed topic graph with conservative prerequisite suggestions
@@ -93,16 +96,25 @@ Open [http://localhost:3000](http://localhost:3000).
 
 1. Register an account (or sign in).
 2. Create a subject/course workspace.
-3. Upload one or more PDF, DOCX, PPTX, or TXT files. Hold `Ctrl` in the file chooser to select separate files, or use `Ctrl + A` to select a folder's files.
+3. Upload one or more PDF, DOCX, PPTX, or TXT files. You can select a complete folder with **Choose folder**. Optionally enable **Automatically detect and organize subjects** to let Groq choose or create the matching subject workspace.
 4. Wait for each selected document to be categorized, indexed, and added to the subject knowledge graph.
 5. Select Beginner, Intermediate, or Advanced and choose a study mode.
 6. Ask a topic question, request a cross-document synthesis, or paste an exam question to solve.
 
 For a document tagged as `questions`, use **Solve all questions** beside the file name. The system extracts up to 20 numbered questions and solves each one separately against the other uploaded course materials. This is intentionally processed one question at a time, so a large question paper can take a few minutes.
 
+If a question paper is the only uploaded material, the solver can still provide answers from Groq's general academic knowledge. Those answers are explicitly marked as general knowledge rather than source-grounded. Upload notes, textbooks, or answer keys for fully grounded answers with citations.
+
 The Study Chat keeps recent follow-up messages, so you can ask questions such as “give an example of that” or “explain it at a beginner level” without repeating the topic. Each response still retrieves course sources before answering.
 
 The first document upload can take longer because the embedding model is downloaded and initialized locally. Answers cite the uploaded filenames used as sources.
+
+After pulling these changes, install the added Markdown-rendering frontend packages once:
+
+```powershell
+cd frontend
+npm install
+```
 
 ## Four-week milestone coverage
 
