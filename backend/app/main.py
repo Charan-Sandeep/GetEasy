@@ -2,12 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.database import Base, engine
 from app.routers import auth, documents, query, subjects
-
-# Creates tables if they don't exist. Fine for Week 1-2;
-# switch to Alembic migrations once the schema stabilizes.
-Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Subject Guide & Question Bank Assistant API")
 
