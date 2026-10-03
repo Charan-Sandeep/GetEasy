@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://geteasy-gjeb.onrender.com";
 
 function Markdown({ text }) {
   return <ReactMarkdown remarkPlugins={[remarkGfm]}>{text || "No answer was returned."}</ReactMarkdown>;
@@ -63,7 +63,7 @@ export default function Home() {
   const activeSubject = subjects.find((subject) => subject.id === subjectId);
 
   async function request(path, options = {}) {
-    const response = await fetch(`${API}${path}`, options);
+    const response = await fetch(`${API_URL}${path}`, options);
     const data = response.status === 204 ? null : await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.detail || "Request failed.");
     return data;
